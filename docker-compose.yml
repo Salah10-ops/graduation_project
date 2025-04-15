@@ -9,12 +9,15 @@ services:
       - app-network
 
   app:
-    build: .
+    build: 
+      context: ./app
+      dockerfile: Dockerfile
     container_name: python-redis-app
     ports:
       - "8000:8000"
     environment:
       - REDIS_HOST=redis  # Pointing to the Redis container
+      - ENVIRONMENT=DEV
     depends_on:
       - redis
     networks:

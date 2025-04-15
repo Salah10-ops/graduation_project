@@ -33,3 +33,30 @@ resource "aws_internet_gateway" "gw" {
     Name = "main-gateway"
   }
 }
+
+# Create the Route Table
+resource "aws_route_table" "main" {
+  vpc_id = aws_vpc.main.id
+
+  # Add route to the Internet Gateway
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.gw.id
+  }
+
+  tags = {
+    Name = "main-route-table"
+  }
+}
+
+# Associate the route table with subnet-a (Public Subnet 1)
+resource "aws_route_table_association" "subnet_a_association" {
+  subnet_id      = aws_subnet.subnet_a.id
+  route_table_id = aws_route_table.main.id
+}
+
+# Associate the route table with subnet-b (Public Subnet 2)
+resource "aws_route_table_association" "subnet_b_association" {
+  subnet_id      = aws_subnet.subnet_b.id
+  route_table_id = aws_route_table.main.id
+}

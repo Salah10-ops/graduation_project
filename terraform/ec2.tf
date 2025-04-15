@@ -18,4 +18,21 @@ resource "aws_instance" "jenkins_server" {
   tags = {
     Name = "Jenkins Server"
   }
+
+  # Automatically run Docker and Jenkins setup after EC2 instance is created
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt update -y",
+      "sudo apt install -y python3-pip docker.io",
+      "sudo usermod -aG docker ubuntu",  # Add user to Docker group
+      "sudo docker run -d -p 8080:8080 --name jenkins jenkins/jenkins:lts"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("C:/Users/Abdelrahman/.ssh/my-key-pair.pem")  # Adjust path to your private key
+      host        = self.public_ip
+    }
+  }
 }

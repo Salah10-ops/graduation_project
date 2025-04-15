@@ -1,6 +1,6 @@
 resource "aws_security_group" "sg" {
   name        = "app-security-group"
-  description = "Allow inbound traffic on ports 22, 80, and 443"
+  description = "Allow inbound traffic on ports 22, 80, 443, and 8080"
   vpc_id      = aws_vpc.main.id
   
   ingress { #SSH access (port 22)
@@ -20,6 +20,13 @@ resource "aws_security_group" "sg" {
   ingress { #HTTPS access (port 443)
     from_port   = 443
     to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress { #to access jenkins
+    from_port   = 8080
+    to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
