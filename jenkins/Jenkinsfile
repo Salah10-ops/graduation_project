@@ -1,0 +1,32 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_IMAGE = "my-python-app-image"
+    }
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    docker.build(DOCKER_IMAGE)
+                }
+            }
+        }
+        stage('Push to ECR') {
+            steps {
+                script {
+                    docker.withRegistry('https://<aws_account_id>.dkr.ecr.<region>.amazonaws.com', 'ecr:aws-creds') {
+                        docker.image(DOCKER_IMAGE).push('latest')
+                    }
+                }
+            }
+        }
+        stage('Deploy to EKS') {
+            steps {
+                script {
+                    sh 'kubectl apply -f app/k8s/app-deployment.yaml'
+                    sh 'kubectl apply -f app/k8s/app-service.yaml'
+                }
+            }
+        }
+    }
+}

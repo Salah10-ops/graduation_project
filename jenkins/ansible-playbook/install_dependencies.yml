@@ -1,0 +1,71 @@
+#- name: Install Jenkins and Docker on EC2
+#  hosts: jenkins
+#  become: true
+#
+#  tasks:
+#    - name: Update apt repository and install dependencies
+#      apt:
+#        update_cache: yes
+#        name:
+#          - python3-pip
+#          - docker.io
+#        state: present
+#
+#    - name: Install Docker SDK for Python via pip
+#      pip:
+#        name: docker
+#        state: present
+
+---
+- name: Install dependencies (Docker and Jenkins)
+  hosts: jenkins  # Target the Jenkins server
+  become: true    # Use sudo for root privileges
+
+  tasks:
+    - name: Update apt repository and install dependencies
+      apt:
+        update_cache: yes
+        name:
+          - python3-pip
+          - docker.io
+        state: present
+
+    - name: Install Python3 virtualenv package
+      apt:
+        name: python3-venv
+        state: present
+
+    - name: Check if virtual environment exists
+      stat:
+        path: /home/ubuntu/venv  # Replace with your desired location
+      register: venv_stat
+
+    - name: Create a Python virtual environment for Docker SDK
+      command: python3 -m venv /home/ubuntu/venv  # Replace with your desired location
+      when: not venv_stat.stat.exists  # Only create if it doesn't exist
+
+    - name: Install Docker SDK for Python in virtual environment
+      pip:
+        name: docker
+        virtualenv: /home/ubuntu/venv
+
+    - name: Add user to Docker group (to allow running Docker without sudo)
+      user:
+        name: ubuntu  # Replace with your user name if necessary
+        groups: docker
+        append: yes
+
+    - name: Pull Jenkins Docker image
+      docker_image:
+        name: jenkins/jenkins:lts
+        source: pull
+
+    - name: Run Jenkins container
+      docker_container:
+        name: jenkins
+        image: jenkins/jenkins:lts
+        state: started
+        ports:
+          - "8080:8080"  # Expose port 8080 for Jenkins UI
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock  # Allow Docker inside Docker for Jenkins
