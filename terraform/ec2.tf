@@ -21,11 +21,21 @@ resource "aws_instance" "jenkins_server" {
 
   # Automatically run Docker and Jenkins setup after EC2 instance is created
   provisioner "remote-exec" {
+#    inline = [
+#      "sudo apt update -y",
+#      "sudo apt install -y python3-pip docker.io",
+#      "sudo usermod -aG docker ubuntu",  # Add user to Docker group
+#      "sudo docker run -d -p 8080:8080 --name jenkins jenkins/jenkins:lts"
+#    ]
     inline = [
       "sudo apt update -y",
-      "sudo apt install -y python3-pip docker.io",
-      "sudo usermod -aG docker ubuntu",  # Add user to Docker group
-      "sudo docker run -d -p 8080:8080 --name jenkins jenkins/jenkins:lts"
+      "sudo apt install -y openjdk-11-jdk",
+      "wget -q -O - https://pkg.jenkins.io/keys/jenkins.io.key | sudo tee -a /etc/apt/trusted.gpg.d/jenkins.asc",
+      "sudo sh -c 'echo deb http://pkg.jenkins.io/debian/ stable main > /etc/apt/sources.list.d/jenkins.list'",
+      "sudo apt update -y",
+      "sudo apt install jenkins -y",
+      "sudo systemctl start jenkins",
+      "sudo systemctl enable jenkins"
     ]
 
     connection {
