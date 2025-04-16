@@ -13,7 +13,14 @@ spec:
         app: my-python-app
     spec:
       containers:
-      - name: my-python-app
+      - name: my-app
         image: my-python-app-image:latest
+        #image: 340752816389.dkr.ecr.us-east-1.amazonaws.com/my-python-app-image:latest
+        imagePullPolicy: Never
         ports:
-        - containerPort: 8080
+        - containerPort: 8000
+        env:
+        - name: REDIS_HOST
+          value: redis-service
+        - name: REDIS_PORT
+          value: "6379"

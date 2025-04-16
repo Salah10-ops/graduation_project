@@ -1,11 +1,33 @@
+#apiVersion: networking.k8s.io/v1
+#kind: Ingress
+#metadata:
+#  name: app-ingress
+#  namespace: default
+#spec:
+#  rules:
+#  - host: localhost
+#    http:
+#      paths:
+#      - path: /
+#        pathType: Prefix
+#        backend:
+#          service:
+#            name: app-service
+#            port:
+#              number: 80
+#
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: app-ingress
   namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
+  ingressClassName: nginx # Ensure this matches the Ingress class used by your controller
   rules:
-  - host: your-app-domain.com  # Replace with actual domain or IP
+  - host: localhost
     http:
       paths:
       - path: /
