@@ -19,7 +19,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${REGISTRY}/${ECR_REPO}:${GIT_COMMIT}")
+                    docker.build("python-app:${env.BUILD_ID}")
                 }
             }
         }
