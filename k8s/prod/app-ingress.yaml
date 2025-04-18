@@ -2,20 +2,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: python-app-ingress
-  namespace: prod 
+  namespace: test  
 spec:
   rules:
-  - host: ad2864581cb0e43cf939db563ce78533-28d030f649cbff25.elb.us-east-1.amazonaws.com
-    http:
-      paths:
-      - path: /test
-        pathType: Prefix
-        backend:
-          service:
-            name: python-app
-            port:
-              number: 80
-  - host: ad2864581cb0e43cf939db563ce78533-28d030f649cbff25.elb.us-east-1.amazonaws.com
+  - host: 340752816389.dkr.ecr.us-east-1.amazonaws.com
     http:
       paths:
       - path: /prod

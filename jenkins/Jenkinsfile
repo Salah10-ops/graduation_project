@@ -2,37 +2,34 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = 'us-east-1'
-        ECR_REPO = 'python-app'
-        IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-        ECR_URI = "340752816389.dkr.ecr.us-east-1.amazonaws.com/python-app"
-        DEPLOY_NAMESPACE = "${env.BRANCH_NAME}" // test or prod
+        REGISTRY = "340752816389.dkr.ecr.us-east-1.amazonaws.com"
+        IMAGE_NAME = "python-app"
+        ECR_REPO = "python-app"
+        AWS_REGION = "us-east-1"
+        KUBECONFIG = "/home/jenkins/.kube/config"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/Salah10-ops/graduation_project.git'
-            }
-        }
-
-        stage('Set Up Docker Auth with ECR') {
-            steps {
-                script {
-                    sh '''
-                    aws ecr get-login-password --region $AWS_REGION | \
-                    docker login --username AWS --password-stdin $ECR_URI
-                    '''
-                }
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                dir('app') {
-                    script {
-                        sh "docker build -t $ECR_URI:$IMAGE_TAG ."
-                    }
+                script {
+                    docker.build("${REGISTRY}/${ECR_REPO}:${GIT_COMMIT}")
+                }
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                script {
+                    sh '''
+                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY
+                    '''
                 }
             }
         }
@@ -40,24 +37,54 @@ pipeline {
         stage('Push Docker Image to ECR') {
             steps {
                 script {
-                    sh "docker push $ECR_URI:$IMAGE_TAG"
+                    sh '''
+                    docker tag ${REGISTRY}/${ECR_REPO}:${GIT_COMMIT} ${REGISTRY}/${ECR_REPO}:latest
+                    docker push ${REGISTRY}/${ECR_REPO}:${GIT_COMMIT}
+                    docker push ${REGISTRY}/${ECR_REPO}:latest
+                    '''
                 }
             }
         }
 
-        stage('Update K8s Deployment') {
+        stage('Apply Namespaces') {
             steps {
                 script {
                     sh '''
-                    aws eks update-kubeconfig --region $AWS_REGION --name devops-cluster
+                    kubectl --kubeconfig=${KUBECONFIG} apply -f k8s/namespace.yaml
+                    '''
+                }
+            }
+        }
 
-                    # Substitute the image URI in the deployment YAML
-                    sed "s|<IMAGE>|$ECR_URI:$IMAGE_TAG|g" k8s/app-deployment.yaml | \
-                    kubectl apply -n $DEPLOY_NAMESPACE -f -
-                    
-                    # Apply service and ingress as well
-                    kubectl apply -n $DEPLOY_NAMESPACE -f kubernetes/app-service.yaml
-                    kubectl apply -n $DEPLOY_NAMESPACE -f kubernetes/app-ingress.yaml
+        stage('Deploy to Test') {
+            when {
+                not { branch 'main' }
+            }
+            steps {
+                script {
+                    sh '''
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n test -f k8s/test/redis-deployment.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n test -f k8s/test/redis-service.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n test -f k8s/test/app-deployment.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n test -f k8s/test/app-service.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n test -f k8s/test/app-ingress.yaml
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Prod') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    sh '''
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n prod -f k8s/prod/redis-deployment.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n prod -f k8s/prod/redis-service.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n prod -f k8s/prod/app-deployment.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n prod -f k8s/prod/app-service.yaml
+                    kubectl --kubeconfig=${KUBECONFIG} apply -n prod -f k8s/prod/app-ingress.yaml
                     '''
                 }
             }
@@ -66,10 +93,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment to $DEPLOY_NAMESPACE successful!"
+            echo '✅ Deployment Successful!'
         }
         failure {
-            echo "❌ Deployment to $DEPLOY_NAMESPACE failed!"
+            echo '❌ Deployment Failed.'
         }
     }
 }
