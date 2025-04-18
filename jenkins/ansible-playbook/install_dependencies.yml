@@ -122,9 +122,18 @@
         enabled: yes
         state: started
 
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
     - name: Open firewall port 8080 for Jenkins
       ufw:
         rule: allow
         port: '8080'
         proto: tcp
-        state: enabled
+
+    - name: Enable UFW firewall
+      ufw:
+        state: enabled   
