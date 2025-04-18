@@ -1,32 +1,75 @@
 pipeline {
     agent any
+
     environment {
-        DOCKER_IMAGE = "my-python-app-image"
+        AWS_REGION = 'us-east-1'
+        ECR_REPO = 'python-app'
+        IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+        ECR_URI = "340752816389.dkr.ecr.us-east-1.amazonaws.com/python-app"
+        DEPLOY_NAMESPACE = "${env.BRANCH_NAME}" // test or prod
     }
+
     stages {
-        stage('Build') {
+        stage('Checkout') {
+            steps {
+                git branch: "${env.BRANCH_NAME}", url: 'https://github.com/Salah10-ops/graduation_project.git'
+            }
+        }
+
+        stage('Set Up Docker Auth with ECR') {
             steps {
                 script {
-                    docker.build(DOCKER_IMAGE)
+                    sh '''
+                    aws ecr get-login-password --region $AWS_REGION | \
+                    docker login --username AWS --password-stdin $ECR_URI
+                    '''
                 }
             }
         }
-        stage('Push to ECR') {
+
+        stage('Build Docker Image') {
             steps {
-                script {
-                    docker.withRegistry('https://<aws_account_id>.dkr.ecr.<region>.amazonaws.com', 'ecr:aws-creds') {
-                        docker.image(DOCKER_IMAGE).push('latest')
+                dir('app') {
+                    script {
+                        sh "docker build -t $ECR_URI:$IMAGE_TAG ."
                     }
                 }
             }
         }
-        stage('Deploy to EKS') {
+
+        stage('Push Docker Image to ECR') {
             steps {
                 script {
-                    sh 'kubectl apply -f app/k8s/app-deployment.yaml'
-                    sh 'kubectl apply -f app/k8s/app-service.yaml'
+                    sh "docker push $ECR_URI:$IMAGE_TAG"
                 }
             }
+        }
+
+        stage('Update K8s Deployment') {
+            steps {
+                script {
+                    sh '''
+                    aws eks update-kubeconfig --region $AWS_REGION --name devops-cluster
+
+                    # Substitute the image URI in the deployment YAML
+                    sed "s|<IMAGE>|$ECR_URI:$IMAGE_TAG|g" k8s/app-deployment.yaml | \
+                    kubectl apply -n $DEPLOY_NAMESPACE -f -
+                    
+                    # Apply service and ingress as well
+                    kubectl apply -n $DEPLOY_NAMESPACE -f kubernetes/app-service.yaml
+                    kubectl apply -n $DEPLOY_NAMESPACE -f kubernetes/app-ingress.yaml
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment to $DEPLOY_NAMESPACE successful!"
+        }
+        failure {
+            echo "❌ Deployment to $DEPLOY_NAMESPACE failed!"
         }
     }
 }

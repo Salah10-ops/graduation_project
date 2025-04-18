@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-app
+  namespace: test  
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-app
+  template:
+    metadata:
+      labels:
+        app: python-app
+    spec:
+      containers:
+        - name: python-app
+          image: 340752816389.dkr.ecr.us-east-1.amazonaws.com/python-app
+          env:
+            - name: REDIS_HOST
+              value: "redis"
+            - name: ENVIRONMENT
+              value: "test"  
+          ports:
+            - containerPort: 8000

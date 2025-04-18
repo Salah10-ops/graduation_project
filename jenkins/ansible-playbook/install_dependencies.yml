@@ -16,56 +16,115 @@
 #        name: docker
 #        state: present
 
----
-- name: Install dependencies (Docker and Jenkins)
-  hosts: jenkins  # Target the Jenkins server
-  become: true    # Use sudo for root privileges
+#---
+#- name: Install dependencies (Docker and Jenkins)
+#  hosts: jenkins  # Target the Jenkins server
+#  become: true    # Use sudo for root privileges
+#
+#  tasks:
+#    - name: Update apt repository and install dependencies
+#      apt:
+#        update_cache: yes
+#        name:
+#          - python3-pip
+#          - docker.io
+#        state: present
+#
+#    - name: Install Python3 virtualenv package
+#      apt:
+#        name: python3-venv
+#        state: present
+#
+#    - name: Check if virtual environment exists
+#      stat:
+#        path: /home/ubuntu/venv  # Replace with your desired location
+#      register: venv_stat
+#
+#    - name: Create a Python virtual environment for Docker SDK
+#      command: python3 -m venv /home/ubuntu/venv  # Replace with your desired location
+#      when: not venv_stat.stat.exists  # Only create if it doesn't exist
+#
+#    - name: Install Docker SDK for Python in virtual environment
+#      pip:
+#        name: docker
+#        virtualenv: /home/ubuntu/venv
+#
+#    - name: Add user to Docker group (to allow running Docker without sudo)
+#      user:
+#        name: ubuntu  # Replace with your user name if necessary
+#        groups: docker
+#        append: yes
+#
+#    - name: Pull Jenkins Docker image
+#      docker_image:
+#        name: jenkins/jenkins:lts
+#        source: pull
+#
+#    - name: Run Jenkins container
+#      docker_container:
+#        name: jenkins
+#        image: jenkins/jenkins:lts
+#        state: started
+#        ports:
+#          - "8080:8080"  # Expose port 8080 for Jenkins UI
+#        volumes:
+#          - /var/run/docker.sock:/var/run/docker.sock  # Allow Docker inside Docker for Jenkins
 
+
+- name: Install Jenkins Natively
+  hosts: jenkins
+  become: true
   tasks:
-    - name: Update apt repository and install dependencies
+
+    - name: Update APT cache
       apt:
         update_cache: yes
-        name:
-          - python3-pip
-          - docker.io
-        state: present
+        force_apt_get: yes
 
-    - name: Install Python3 virtualenv package
+    - name: Install dependencies (wget, gnupg, fontconfig, openjdk-17-jre)
       apt:
-        name: python3-venv
+        name:
+          - wget
+          - gnupg
+          - fontconfig
+          - openjdk-17-jre
         state: present
 
-    - name: Check if virtual environment exists
-      stat:
-        path: /home/ubuntu/venv  # Replace with your desired location
-      register: venv_stat
+    - name: Download Jenkins key
+      get_url:
+        url: https://pkg.jenkins.io/debian/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
 
-    - name: Create a Python virtual environment for Docker SDK
-      command: python3 -m venv /home/ubuntu/venv  # Replace with your desired location
-      when: not venv_stat.stat.exists  # Only create if it doesn't exist
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian binary/"
+        filename: jenkins
+        state: present
 
-    - name: Install Docker SDK for Python in virtual environment
-      pip:
-        name: docker
-        virtualenv: /home/ubuntu/venv
+    - name: Update APT cache after adding Jenkins repo
+      apt:
+        update_cache: yes
+        
+    - name: Install Java (required by Jenkins)
+      apt:
+        name: openjdk-11-jdk
+        state: present
+        update_cache: yes
 
-    - name: Add user to Docker group (to allow running Docker without sudo)
-      user:
-        name: ubuntu  # Replace with your user name if necessary
-        groups: docker
-        append: yes
-
-    - name: Pull Jenkins Docker image
-      docker_image:
-        name: jenkins/jenkins:lts
-        source: pull
-
-    - name: Run Jenkins container
-      docker_container:
+    - name: Install Jenkins
+      apt:
         name: jenkins
-        image: jenkins/jenkins:lts
+        state: present
+
+    - name: Enable and start Jenkins service
+      systemd:
+        name: jenkins
+        enabled: yes
         state: started
-        ports:
-          - "8080:8080"  # Expose port 8080 for Jenkins UI
-        volumes:
-          - /var/run/docker.sock:/var/run/docker.sock  # Allow Docker inside Docker for Jenkins
+
+    - name: Open firewall port 8080 for Jenkins
+      ufw:
+        rule: allow
+        port: '8080'
+        proto: tcp
+        state: enabled
