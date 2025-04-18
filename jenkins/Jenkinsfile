@@ -7,6 +7,7 @@ pipeline {
         ECR_REPO = "python-app"
         AWS_REGION = "us-east-1"
         KUBECONFIG = "/home/jenkins/.kube/config"
+        IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
     }
 
     stages {
@@ -19,7 +20,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("python-app:${env.BUILD_ID}")
+                    docker.build("${REGISTRY}/${ECR_REPO}:${IMAGE_TAG}", "app/")
                 }
             }
         }
