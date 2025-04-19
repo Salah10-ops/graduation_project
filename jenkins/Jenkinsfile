@@ -8,7 +8,7 @@ pipeline {
         AWS_REGION = "us-east-1"
         KUBECONFIG = "/home/jenkins/.kube/config"
         //IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}
-        NAMESPACE = "test" // test or prod
+        //NAMESPACE = "test" // test or prod
     }
 
     stages {
@@ -60,7 +60,7 @@ pipeline {
 
         stage('Deploy to Test') {
 
-            namespace = "test"
+            def namespace = "test"
                 //            kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-deployment.yaml
                 //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-service.yaml
                 //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
