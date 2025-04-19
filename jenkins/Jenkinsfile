@@ -7,7 +7,7 @@ pipeline {
         ECR_REPO = "python-app"
         AWS_REGION = "us-east-1"
         KUBECONFIG = "/home/jenkins/.kube/config"
-        //IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}
+        IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
         //NAMESPACE = "test" // test or prod
     }
 
