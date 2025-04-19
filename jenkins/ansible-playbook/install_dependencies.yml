@@ -50,11 +50,20 @@
         K8S_VERSION=$(curl -s https://dl.k8s.io/release/stable.txt)
         curl -LO "https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl"
         chmod +x kubectl
-        mv kubectl /usr/local/bin/kubectl
+        sudo mv kubectl /usr/local/bin/kubectl
       args:
         executable: /bin/bash
-      register: kubectl_install
-      changed_when: "'kubectl' in kubectl_install.stdout"
+      become: true
+
+    - name: Check kubectl version
+      command: kubectl version --client
+      register: kubectl_version
+      failed_when: kubectl_version.rc != 0
+      become: true
+    
+    - debug:
+        msg: "kubectl version installed successfully"
+    
 
     - name: Install AWS CLI v2
       shell: |
