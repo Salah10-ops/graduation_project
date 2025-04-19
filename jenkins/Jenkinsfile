@@ -18,6 +18,16 @@ pipeline {
             }
         }
 
+        stage('Set Branch Name') {
+            steps {
+                script {
+                    // Dynamically fetch the branch name and set it as an environment variable
+                    env.BRANCH_NAME = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                    echo "Branch Name: ${env.BRANCH_NAME}"
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -38,7 +48,8 @@ pipeline {
                     '''
                 }
             }
-        } 
+        }
+
         stage('Push Docker Image to ECR') {
             steps {
                 sh '''
@@ -51,18 +62,24 @@ pipeline {
 
         stage('Apply Namespaces') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'aws-ecr-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]){                sh '''
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/namespace.yaml
-                '''}
-
+                withCredentials([usernamePassword(credentialsId: 'aws-ecr-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh '''
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/namespace.yaml
+                    '''
+                }
             }
         }
 
         stage('Deploy to Test') {
             when {
-                expression { env.BRANCH_NAME == 'test' }
+                expression { return env.BRANCH_NAME == 'test' }
             }
             steps {
+                script {
+                    echo "Deploying to Test Environment"
+                    echo "Branch Name: ${env.BRANCH_NAME}"
+                    echo "KUBECONFIG path: ${env.KUBECONFIG}"
+                }
                 sh '''
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-deployment.yaml
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-service.yaml
@@ -75,19 +92,21 @@ pipeline {
 
         stage('Deploy to Prod') {
             when {
-                branch 'main'
+                branch 'master'
             }
             steps {
                 script {
-                    env.NAMESPACE = "prod"
-                    sh '''
-                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-deployment.yaml
-                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-service.yaml
-                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-deployment.yaml
-                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-service.yaml
-                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-ingress.yaml
-                    '''
+                    echo "Deploying to Production Environment"
+                    echo "Branch Name: ${env.BRANCH_NAME}"
+                    echo "KUBECONFIG path: ${env.KUBECONFIG}"
                 }
+                sh '''
+                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-deployment.yaml
+                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-service.yaml
+                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-deployment.yaml
+                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-service.yaml
+                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-ingress.yaml
+                '''
             }
         }
     }
