@@ -2,29 +2,19 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "340752816389.dkr.ecr.us-east-1.amazonaws.com"
-        IMAGE_NAME = "python-app"
-        ECR_REPO = "python-app"
-        AWS_REGION = "us-east-1"
-        KUBECONFIG = "/home/jenkins/.kube/config"
-        IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-        NAMESPACE = "${env.BRANCH_NAME}" // test or prod
+        REGISTRY     = "340752816389.dkr.ecr.us-east-1.amazonaws.com"
+        IMAGE_NAME   = "python-app"
+        ECR_REPO     = "python-app"
+        AWS_REGION   = "us-east-1"
+        KUBECONFIG   = "/home/jenkins/.kube/config"
+        IMAGE_TAG    = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+        NAMESPACE    = "${env.BRANCH_NAME}"  // Will be 'test' or 'prod'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
                 checkout scm
-            }
-        }
-
-        stage('Set Branch Name') {
-            steps {
-                script {
-                    // Dynamically fetch the branch name and set it as an environment variable
-                    env.BRANCH_NAME = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
-                    echo "Branch Name: ${env.BRANCH_NAME}"
-                }
             }
         }
 
@@ -42,9 +32,8 @@ pipeline {
                     sh '''
                         aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
                         aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-                        aws configure set default.region us-east-1
-
-                        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 340752816389.dkr.ecr.us-east-1.amazonaws.com
+                        aws configure set default.region $AWS_REGION
+                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY
                     '''
                 }
             }
@@ -53,9 +42,9 @@ pipeline {
         stage('Push Docker Image to ECR') {
             steps {
                 sh '''
-                docker push ${REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
-                docker tag ${REGISTRY}/${ECR_REPO}:${IMAGE_TAG} ${REGISTRY}/${ECR_REPO}:latest
-                docker push ${REGISTRY}/${ECR_REPO}:latest
+                    docker push ${REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
+                    docker tag ${REGISTRY}/${ECR_REPO}:${IMAGE_TAG} ${REGISTRY}/${ECR_REPO}:latest
+                    docker push ${REGISTRY}/${ECR_REPO}:latest
                 '''
             }
         }
@@ -64,7 +53,7 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'aws-ecr-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
-                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/namespace.yaml
+                        kubectl --kubeconfig=$KUBECONFIG apply -f k8s/namespace.yaml
                     '''
                 }
             }
@@ -72,40 +61,32 @@ pipeline {
 
         stage('Deploy to Test') {
             when {
-                expression { return env.BRANCH_NAME == 'test' }
+                expression { env.BRANCH_NAME == 'test' }
             }
             steps {
-                script {
-                    echo "Deploying to Test Environment"
-                    echo "Branch Name: ${env.BRANCH_NAME}"
-                    echo "KUBECONFIG path: ${env.KUBECONFIG}"
-                }
+                echo "🚀 Deploying to Test Environment"
                 sh '''
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-deployment.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-service.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-service.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-ingress.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-deployment.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-service.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-service.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-ingress.yaml
                 '''
             }
         }
 
         stage('Deploy to Prod') {
             when {
-                expression { return env.BRANCH_NAME == 'master' }
+                expression { env.BRANCH_NAME == 'prod' || env.BRANCH_NAME == 'main' }
             }
             steps {
-                script {
-                    echo "Deploying to Production Environment"
-                    echo "Branch Name: ${env.BRANCH_NAME}"
-                    echo "KUBECONFIG path: ${env.KUBECONFIG}"
-                }
+                echo "🚀 Deploying to Production Environment"
                 sh '''
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-deployment.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-service.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-deployment.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-service.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-ingress.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-deployment.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-service.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-deployment.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-service.yaml
+                    kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/app-ingress.yaml
                 '''
             }
         }
