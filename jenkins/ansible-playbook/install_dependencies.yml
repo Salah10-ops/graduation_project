@@ -1,79 +1,11 @@
-#- name: Install Jenkins and Docker on EC2
-#  hosts: jenkins
-#  become: true
-#
-#  tasks:
-#    - name: Update apt repository and install dependencies
-#      apt:
-#        update_cache: yes
-#        name:
-#          - python3-pip
-#          - docker.io
-#        state: present
-#
-#    - name: Install Docker SDK for Python via pip
-#      pip:
-#        name: docker
-#        state: present
-
-#---
-#- name: Install dependencies (Docker and Jenkins)
-#  hosts: jenkins  # Target the Jenkins server
-#  become: true    # Use sudo for root privileges
-#
-#  tasks:
-#    - name: Update apt repository and install dependencies
-#      apt:
-#        update_cache: yes
-#        name:
-#          - python3-pip
-#          - docker.io
-#        state: present
-#
-#    - name: Install Python3 virtualenv package
-#      apt:
-#        name: python3-venv
-#        state: present
-#
-#    - name: Check if virtual environment exists
-#      stat:
-#        path: /home/ubuntu/venv  # Replace with your desired location
-#      register: venv_stat
-#
-#    - name: Create a Python virtual environment for Docker SDK
-#      command: python3 -m venv /home/ubuntu/venv  # Replace with your desired location
-#      when: not venv_stat.stat.exists  # Only create if it doesn't exist
-#
-#    - name: Install Docker SDK for Python in virtual environment
-#      pip:
-#        name: docker
-#        virtualenv: /home/ubuntu/venv
-#
-#    - name: Add user to Docker group (to allow running Docker without sudo)
-#      user:
-#        name: ubuntu  # Replace with your user name if necessary
-#        groups: docker
-#        append: yes
-#
-#    - name: Pull Jenkins Docker image
-#      docker_image:
-#        name: jenkins/jenkins:lts
-#        source: pull
-#
-#    - name: Run Jenkins container
-#      docker_container:
-#        name: jenkins
-#        image: jenkins/jenkins:lts
-#        state: started
-#        ports:
-#          - "8080:8080"  # Expose port 8080 for Jenkins UI
-#        volumes:
-#          - /var/run/docker.sock:/var/run/docker.sock  # Allow Docker inside Docker for Jenkins
-
-
-- name: Install Jenkins Natively
+---
+- name: Install Docker, kubectl, AWS CLI, and Jenkins on Jenkins EC2
   hosts: jenkins
   become: true
+
+  vars:
+    eks_cluster_name: "devops-cluster"  # 🔁 Replace with your EKS cluster name
+
   tasks:
 
     - name: Update APT cache
@@ -81,14 +13,69 @@
         update_cache: yes
         force_apt_get: yes
 
-    - name: Install dependencies (wget, gnupg, fontconfig, openjdk-17-jre)
+    - name: Install required packages
       apt:
         name:
           - wget
+          - curl
           - gnupg
+          - apt-transport-https
+          - ca-certificates
+          - python3-pip
+          - unzip
+          - software-properties-common
           - fontconfig
           - openjdk-17-jre
         state: present
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Add user to Docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Enable Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Install kubectl
+      shell: |
+        K8S_VERSION=$(curl -s https://dl.k8s.io/release/stable.txt)
+        curl -LO "https://dl.k8s.io/release/${K8S_VERSION}/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        mv kubectl /usr/local/bin/kubectl
+      args:
+        executable: /bin/bash
+      register: kubectl_install
+      changed_when: "'kubectl' in kubectl_install.stdout"
+
+    - name: Install AWS CLI v2
+      shell: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip -o awscliv2.zip
+        ./aws/install
+      args:
+        executable: /bin/bash
+      register: awscli_install
+      changed_when: "'aws' in awscli_install.stdout"
+
+    - name: Configure kubeconfig for EKS cluster
+      become: false
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+        AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+        AWS_DEFAULT_REGION: "{{ lookup('env', 'AWS_DEFAULT_REGION') }}"
+      shell: |
+        aws eks update-kubeconfig --name {{ eks_cluster_name }} --region {{ lookup('env', 'AWS_DEFAULT_REGION') }}
+      args:
+        executable: /bin/bash
 
     - name: Download Jenkins key
       get_url:
@@ -101,11 +88,11 @@
         filename: jenkins
         state: present
 
-    - name: Update APT cache after adding Jenkins repo
+    - name: Update APT cache after Jenkins repo
       apt:
         update_cache: yes
-        
-    - name: Install Java (required by Jenkins)
+
+    - name: Install Java (required for Jenkins)
       apt:
         name: openjdk-11-jdk
         state: present
@@ -128,7 +115,7 @@
         port: '22'
         proto: tcp
 
-    - name: Open firewall port 8080 for Jenkins
+    - name: Allow Jenkins port through UFW
       ufw:
         rule: allow
         port: '8080'
@@ -136,4 +123,4 @@
 
     - name: Enable UFW firewall
       ufw:
-        state: enabled   
+        state: enabled
