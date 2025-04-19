@@ -69,7 +69,7 @@ pipeline {
                 script {
                     def namespace = "test"
                     sh '''
-                    sed -i "s|{{ENVIRONMENT}}|${namespace}|g" app-deployment.yaml
+                    sed -i "s|{{ENVIRONMENT}}|${namespace}|g" k8s/test/app-deployment.yaml
                     kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
                     '''
                 }
