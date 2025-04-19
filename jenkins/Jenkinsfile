@@ -59,8 +59,6 @@ pipeline {
         }
 
         stage('Deploy to Test') {
-
-            def namespace = "test"
                 //            kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-deployment.yaml
                 //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-service.yaml
                 //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
@@ -68,6 +66,7 @@ pipeline {
                 //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-ingress.yaml
 
             steps {
+                def namespace = "test"
                 sh '''
                 sed -i "s|{{ENVIRONMENT}}|${namespace}|g" app-deployment.yaml
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
