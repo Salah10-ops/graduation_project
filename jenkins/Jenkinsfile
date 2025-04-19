@@ -7,8 +7,8 @@ pipeline {
         ECR_REPO = "python-app"
         AWS_REGION = "us-east-1"
         KUBECONFIG = "/home/jenkins/.kube/config"
-        IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-        NAMESPACE = "${env.BRANCH_NAME}" // test or prod
+        //IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}
+        NAMESPACE = "test" // test or prod
     }
 
     stages {
@@ -59,16 +59,18 @@ pipeline {
         }
 
         stage('Deploy to Test') {
-            when {
-                expression { env.BRANCH_NAME == 'test' }
-            }
+
+            namespace = "test"
+                //            kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-deployment.yaml
+                //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-service.yaml
+                //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
+                //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-service.yaml
+                //kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-ingress.yaml
+
             steps {
                 sh '''
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-deployment.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/redis-service.yaml
+                sed -i "s|{{ENVIRONMENT}}|${namespace}|g" app-deployment.yaml
                 kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-deployment.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-service.yaml
-                kubectl --kubeconfig=$KUBECONFIG apply -f k8s/test/app-ingress.yaml
                 '''
             }
         }
@@ -79,7 +81,7 @@ pipeline {
             }
             steps {
                 script {
-                    env.NAMESPACE = "prod"
+                    //env.NAMESPACE = "prod"
                     sh '''
                     kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-deployment.yaml
                     kubectl --kubeconfig=$KUBECONFIG apply -f k8s/prod/redis-service.yaml
