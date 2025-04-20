@@ -59,6 +59,12 @@ pipeline {
             }
         }
 
+        stage('Check Branch') {
+            steps {
+                echo "🔍 Current branch: ${env.BRANCH_NAME}"
+            }
+        }
+
         stage('Deploy to Test') {
             when {
                 expression { env.BRANCH_NAME == 'test' }
