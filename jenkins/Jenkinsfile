@@ -15,21 +15,12 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 checkout scm
-                script {
-                    // Dynamically fetch the branch name
-                    def branchName = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
-                    echo "Current branch is: ${branchName}"
-                    env.BRANCH_NAME = branchName // Set the branch name dynamically
-                    env.IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}" // Update the IMAGE_TAG
-                    env.NAMESPACE = branchName // Update namespace to match branch name
-                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Building Docker image with tag: ${IMAGE_TAG}"
                     docker.build("${REGISTRY}/${ECR_REPO}:${IMAGE_TAG}", "app/")
                 }
             }

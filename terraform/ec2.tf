@@ -50,7 +50,7 @@
 
 resource "aws_instance" "jenkins_server" {
   ami                    = "ami-0f9de6e2d2f067fca"  # Ubuntu-based AMI
-  instance_type          = "t2.micro"
+  instance_type          = "t3.medium"
   subnet_id              = aws_subnet.subnet_b.id
   key_name               = "my-key-pair"
   vpc_security_group_ids = [aws_security_group.sg.id]
