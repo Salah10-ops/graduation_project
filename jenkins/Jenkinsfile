@@ -83,7 +83,7 @@ pipeline {
 
         stage('Deploy to Prod') {
             when {
-                expression { env.BRANCH_NAME == 'prod' || env.BRANCH_NAME == 'main' }
+                expression { env.BRANCH_NAME in ['prod', 'main', 'master'] }
             }
             steps {
                 echo "🚀 Deploying to Production Environment"
