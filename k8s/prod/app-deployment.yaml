@@ -12,6 +12,10 @@ spec:
     metadata:
       labels:
         app: python-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8001"
     spec:
       containers:
         - name: python-app
@@ -23,3 +27,6 @@ spec:
               value: "prod"  # Change to 'prod' for production
           ports:
             - containerPort: 8000
+              name: http
+            - containerPort: 8001
+              name: metrics

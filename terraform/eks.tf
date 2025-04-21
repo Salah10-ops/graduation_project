@@ -31,3 +31,7 @@ resource "aws_iam_role_policy_attachment" "eks_policy_attach" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.eks_role.name
 }
+
+data "aws_eks_cluster_auth" "cluster_auth" {
+  name = aws_eks_cluster.eks_cluster.name
+}
