@@ -109,6 +109,6 @@ class Application(tornado.web.Application):
 
 if __name__ == "__main__":
     app = Application()
-    app.listen(port)
-    print(f"App running at http://localhost:{port}")
+    app.listen(port, address="0.0.0.0")  # Listen on all interfaces
+    print(f"App running at http://0.0.0.0:{port}")
     tornado.ioloop.IOLoop.current().start()
