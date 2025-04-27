@@ -1,5 +1,7 @@
 # DevOps Pipeline for Redis-Backed Python Counter App
 
+![alt text](<Architecture diagram 1.png>)
+
 ## Overview
 
 This project demonstrates a complete DevOps pipeline setup for a Redis-backed Python counter application. It includes:
