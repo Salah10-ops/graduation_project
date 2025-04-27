@@ -1,6 +1,6 @@
 # DevOps Pipeline for Redis-Backed Python Counter App
 
-![alt text](<Architecture diagram 1.png>)
+![alt text](image.png)
 
 ## Overview
 
